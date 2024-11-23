@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use crate::error::Error;
 use crate::Result;
 
+use xattr::XAttrs;
+
 /// A directory entry.
 ///
 /// This is the type of value that is yielded from the iterators defined in
@@ -143,6 +145,26 @@ impl DirEntry {
             fs::metadata(&self.path)
         } else {
             fs::symlink_metadata(&self.path)
+        }
+        .map_err(|err| Error::from_entry(self, err))
+    }
+
+    /// Return the list of extended attributes for the file that this entry points to.
+    pub fn xattrs(&self) -> Result<XAttrs> {
+        if self.follow_link {
+            xattr::list_deref(&self.path)
+        } else {
+            xattr::list(&self.path)
+        }
+        .map_err(|err| Error::from_entry(self, err))
+    }
+
+    /// Return the value extended attribute <name> for the file that this entry points to.
+    pub fn xattr(&self, name: &OsStr) -> Result<Option<Vec<u8>>> {
+        if self.follow_link {
+            xattr::get_deref(&self.path, name)
+        } else {
+            xattr::get(&self.path, name)
         }
         .map_err(|err| Error::from_entry(self, err))
     }
